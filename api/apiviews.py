@@ -1,10 +1,14 @@
-#from rest_framework.views import APIView
-#from rest_framework.response import Response
-#from django.shortcuts import get_object_or_404
-
+from rest_framework.response import Response
+from rest_framework import status
 from rest_framework import generics
+from rest_framework.views import APIView
+from rest_framework import viewsets
+from django.contrib.auth import authenticate
+from api.ownerpermissions import IsOwner
 from .models import Producto, Categoria, SubCategoria
-from .serializer import ProductoSerializer, CategoriaSerializer, SubCategoriaSerializer
+from .serializer import ProductoSerializer, CategoriaSerializer, \
+    SubCategoriaSerializer, UserSerializer
+
 
 '''
 class ProductoList(APIView):
@@ -27,6 +31,7 @@ class ProductoDetalle(APIView):
 class ProductoList(generics.ListCreateAPIView):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
+    permission_classes = [IsOwner]
 
 
 class ProductoDetalle(generics.ListCreateAPIView):
@@ -63,4 +68,43 @@ class SubcategoriaList(generics.ListCreateAPIView):
     def get_queryset(self):
         queryset = SubCategoria.objects.filter(categoria_id=self.kwargs["pk"])
         return queryset
+
+
+class SubcategoriaAdd(APIView):
+
+    def post(self, request, cat_pk):
+        descripcion = request.data.get("descripcion")
+        data = {"categoria": cat_pk, "descripcion": descripcion}
+        serializer = SubCategoriaSerializer(data=data)
+        if serializer.is_valid():
+            subcat = serializer.save()
+            return Response(serializer.data, status= status.HTTP_201_CREATED)
+
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProductoViewSet(viewsets.ModelViewSet):
+    queryset = Producto.objects.all()
+    serializer_class = ProductoSerializer
+
+
+class UserCreate(generics.CreateAPIView):
+    authentication_classes = ()
+    permission_classes = ()
+    serializer_class = UserSerializer
+
+
+class Login(APIView):
+    permission_class = ()
+
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        user = authenticate(username=username, password=password)
+        if user:
+            return Response({"token": user.auth_token.key})
+        else:
+            return Response({"error": "Incorrect user/pass"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
